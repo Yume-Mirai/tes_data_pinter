@@ -1,7 +1,21 @@
 import { InMemoryUserRepository } from "../infra/InMemoryUserRepository";
 import { InMemoryTodoRepository } from "../infra/InMemoryTodoRepository";
 import { SimpleScheduler } from "../infra/SimpleScheduler";
+import { ExpressHttpServer } from "../infra/ExpressHttpServer";
 import { TodoService } from "../core/TodoService";
+import {
+  createUserHandler,
+  createTodoHandler,
+  completeTodoHandler,
+  getUserHandler,
+  getTodoHandler,
+  updateTodoHandler,
+  deleteTodoHandler,
+  getUserTodosHandler,
+  shareTodoHandler,
+  getAllUsersHandler,
+  getAllTodosHandler
+} from "./handlers";
 
 async function bootstrap() {
   // Wire up dependencies
@@ -9,23 +23,35 @@ async function bootstrap() {
   const todoRepo = new InMemoryTodoRepository();
   const scheduler = new SimpleScheduler();
   const todoService = new TodoService(todoRepo, userRepo);
+  const httpServer = new ExpressHttpServer();
+
+  // Register API routes - more specific routes first
+  httpServer.registerRoute('GET', '/users/:userId/todos', getUserTodosHandler(todoService));
+  httpServer.registerRoute('GET', '/users/:id', getUserHandler(userRepo));
+  httpServer.registerRoute('GET', '/users', getAllUsersHandler(userRepo));
+  httpServer.registerRoute('POST', '/users', createUserHandler(todoService, userRepo));
+
+  httpServer.registerRoute('POST', '/todos/:id/share', shareTodoHandler(todoService, userRepo));
+  httpServer.registerRoute('PATCH', '/todos/:id/complete', completeTodoHandler(todoService));
+  httpServer.registerRoute('PUT', '/todos/:id', updateTodoHandler(todoService));
+  httpServer.registerRoute('DELETE', '/todos/:id', deleteTodoHandler(todoService));
+  httpServer.registerRoute('GET', '/todos/:id', getTodoHandler(todoService));
+  httpServer.registerRoute('POST', '/todos', createTodoHandler(todoService));
+
+  httpServer.registerRoute('GET', '/todos', getAllTodosHandler(todoService));
+
+  // Schedule reminder processing every 60 seconds
+  scheduler.scheduleRecurring('reminder-check', 60000, async () => {
+    console.log('Processing reminders...');
+    await todoService.processReminders();
+  });
+
+  // Start HTTP server
+  await httpServer.listen(3000);
 
   console.log("Todo Reminder Service - Bootstrap Complete");
-  console.log("Repositories and services initialized.");
-  console.log("Note: HTTP server implementation left for candidate to add.");
-
-  // Candidate should implement HTTP server here
-  // Example: scheduler.scheduleRecurring('reminder-check', 60000, () => todoService.processReminders());
-
-  // TODO: Implement HTTP server with the following routes:
-  // POST /users - Create a new user
-  // GET /users/:id - Get user by ID
-  // POST /todos - Create a new todo
-  // GET /todos/:id - Get todo by ID
-  // PUT /todos/:id - Update a todo
-  // DELETE /todos/:id - Delete a todo
-  // GET /users/:userId/todos - Get all todos for a user
-  // POST /todos/:id/share - Share a todo with another user
+  console.log("HTTP server running on port 3000");
+  console.log("Reminder processing scheduled every 60 seconds");
 }
 
 bootstrap().catch(console.error);

@@ -1,5 +1,5 @@
 export interface RouteHandler {
-  (req: any, res: any): void | Promise<void>;
+  (req: any, res: any): any;
 }
 
 export interface IHttpServer {

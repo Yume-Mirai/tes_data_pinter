@@ -7,6 +7,8 @@ export interface ITodoRepository {
     updates: Partial<Omit<Todo, "id" | "userId" | "createdAt">>
   ): Promise<Todo | null>;
   findById(id: string): Promise<Todo | null>;
-  findByUserId(userId: string): Promise<Todo[]>;
+  findByUserId(userId: string, limit?: number, offset?: number): Promise<Todo[]>;
   findDueReminders(currentTime: Date): Promise<Todo[]>;
+  softDelete(id: string): Promise<boolean>;
+  findAllTodos(): Promise<Todo[]>;
 }
